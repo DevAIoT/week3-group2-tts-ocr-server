@@ -1,0 +1,7 @@
+flask
+pillow
+soundfile
+rapidocr
+onnxruntime
+pocket-tts
+scipy
