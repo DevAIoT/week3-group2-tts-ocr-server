@@ -7,6 +7,7 @@ This project hosts a Flask API that exposes OCR and TTS endpoints.
 - `app.py` - Flask application
 - `ocr_rapid_utils.py` - RapidOCR utilities
 - `tts_utils.py` - Pocket‑TTS utilities
+- `tts_kokoro_utils.py` - Kokoro‑TTS utilities
 
 ## Python Environment
 
@@ -16,6 +17,39 @@ source .venv/bin/activate
 pip install -U pip
 pip install -r requirements.txt
 ```
+
+## Dependencies
+
+Core server/runtime:
+```bash
+pip install flask pillow soundfile
+```
+
+RapidOCR:
+```bash
+pip install rapidocr onnxruntime
+```
+
+Pocket‑TTS:
+```bash
+pip install pocket-tts scipy
+```
+
+Kokoro‑TTS:
+```bash
+pip install kokoro-tts
+```
+
+## Kokoro Model Files
+
+Kokoro TTS requires two files in the working directory where you run the server:
+
+```bash
+wget https://github.com/nazdridoy/kokoro-tts/releases/download/v1.0.0/voices-v1.0.bin
+wget https://github.com/nazdridoy/kokoro-tts/releases/download/v1.0.0/kokoro-v1.0.onnx
+```
+
+Reference: https://github.com/nazdridoy/kokoro-tts
 
 ### CPU-only install (avoid CUDA wheels)
 
@@ -59,6 +93,17 @@ JSON body: `{ "text": "...", "voice": "alba" }`
 curl -H "Content-Type: application/json" \
   -d '{"text":"Hello world","voice":"alba"}' \
   http://localhost:5000/tts --output tts.wav
+```
+
+### TTS (Kokoro)
+
+`POST /tts-kokoro`  
+JSON body: `{ "text": "...", "voice": "af_sarah", "lang": "en-us", "speed": 1.0 }`
+
+```bash
+curl -H "Content-Type: application/json" \
+  -d '{"text":"Hello","voice":"af_sarah","lang":"en-us","speed":1.0}' \
+  http://localhost:5000/tts-kokoro --output tts_kokoro.wav
 ```
 
 

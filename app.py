@@ -3,6 +3,7 @@ import tempfile
 from flask import Flask, jsonify, request, send_file
 
 from ocr_rapid_utils import run_rapid_ocr
+from tts_kokoro_utils import run_kokoro_tts
 from tts_utils import run_pocket_tts
 
 
@@ -47,6 +48,35 @@ def tts_endpoint():
         mimetype="audio/wav",
         as_attachment=True,
         download_name="tts.wav",
+    )
+
+
+@app.post("/tts-kokoro")
+def tts_kokoro_endpoint():
+    payload = request.get_json(silent=True) or {}
+    text = payload.get("text", "").strip()
+    if not text:
+        return jsonify({"error": "Missing text"}), 400
+
+    voice = payload.get("voice")
+    lang = payload.get("lang")
+    speed = payload.get("speed")
+
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        output_path = tmp.name
+
+    run_kokoro_tts(
+        text=text,
+        output_path=output_path,
+        voice=voice,
+        lang=lang,
+        speed=speed,
+    )
+    return send_file(
+        output_path,
+        mimetype="audio/wav",
+        as_attachment=True,
+        download_name="tts_kokoro.wav",
     )
 
 

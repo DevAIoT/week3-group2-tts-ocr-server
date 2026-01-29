@@ -5,3 +5,4 @@ rapidocr
 onnxruntime
 pocket-tts
 scipy
+kokoro-tts
