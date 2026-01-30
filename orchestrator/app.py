@@ -1,4 +1,7 @@
+import logging
 import os
+import time
+import uuid
 from threading import Lock
 from typing import Iterable, List
 
@@ -32,6 +35,12 @@ CONNECT_TIMEOUT = float(os.getenv("ORCH_CONNECT_TIMEOUT", "5"))
 READ_TIMEOUT = float(os.getenv("ORCH_READ_TIMEOUT", "120"))
 
 app = Flask(__name__)
+LOG_LEVEL = os.getenv("ORCH_LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s %(levelname)s %(message)s",
+)
+logger = logging.getLogger("orchestrator")
 
 
 def _rotated_targets() -> Iterable[str]:
@@ -52,9 +61,11 @@ def _forward_request(
     files=None,
 ):
     last_error = None
+    request_id = request.headers.get("X-Request-Id") or uuid.uuid4().hex
     for base_url in _rotated_targets():
         url = f"{base_url}{path}"
         try:
+            logger.info("forward_start id=%s url=%s", request_id, url)
             resp = requests.request(
                 method=method,
                 url=url,
@@ -62,10 +73,23 @@ def _forward_request(
                 files=files,
                 timeout=(CONNECT_TIMEOUT, READ_TIMEOUT),
             )
+            logger.info(
+                "forward_done id=%s url=%s status=%s",
+                request_id,
+                url,
+                resp.status_code,
+            )
             if resp.status_code < 500:
                 return resp
+            logger.warning(
+                "forward_retry id=%s url=%s status=%s",
+                request_id,
+                url,
+                resp.status_code,
+            )
         except requests.RequestException as exc:
             last_error = exc
+            logger.warning("forward_error id=%s url=%s err=%s", request_id, url, exc)
             continue
     if last_error:
         raise last_error
@@ -80,6 +104,32 @@ def _proxy_response(resp: requests.Response) -> Response:
 @app.get("/health")
 def health():
     return jsonify({"targets": TARGETS, "count": len(TARGETS)})
+
+
+@app.before_request
+def _log_request_start():
+    request_id = request.headers.get("X-Request-Id") or uuid.uuid4().hex
+    request.environ["request_id"] = request_id
+    request.environ["start_time"] = time.monotonic()
+    logger.info("request_start id=%s method=%s path=%s", request_id, request.method, request.path)
+
+
+@app.after_request
+def _log_request_end(response):
+    request_id = request.environ.get("request_id", "-")
+    start_time = request.environ.get("start_time")
+    elapsed_ms = None
+    if start_time is not None:
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+    logger.info(
+        "request_done id=%s method=%s path=%s status=%s elapsed_ms=%s",
+        request_id,
+        request.method,
+        request.path,
+        response.status_code,
+        elapsed_ms,
+    )
+    return response
 
 
 @app.post("/tts")
@@ -113,4 +163,4 @@ def ocr_rapid_proxy():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=6000, debug=True, threaded=True)
+    app.run(host="0.0.0.0", port=6001, debug=True, threaded=True)
