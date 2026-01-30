@@ -73,6 +73,30 @@ python app.py
 
 The server listens on `http://localhost:5000`.
 
+## Orchestrator
+
+The orchestrator is a separate Flask app that forwards requests to one of many
+OCR/TTS servers. Configure targets in `orchestrator/targets.txt` (one URL per line).
+
+You can also override the file path:
+
+```bash
+export ORCH_TARGETS_FILE="/path/to/targets.txt"
+```
+
+Run it from `orchestrator/`:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -r requirements.txt
+python app.py
+```
+
+The orchestrator listens on `http://localhost:6000` and exposes `/tts`,
+`/tts-kokoro`, and `/ocr-rapid`.
+
 ## Endpoints
 
 ### OCR (RapidOCR)
